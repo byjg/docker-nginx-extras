@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-RUN echo "deb http://ppa.launchpad.net/nginx/stable/ubuntu xenial main" > /etc/apt/sources.list.d/nginx-stable.list \
+RUN echo "deb http://ppa.launchpad.net/nginx/development/ubuntu xenial main" > /etc/apt/sources.list.d/nginx-stable.list \
   && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C300EE8C \
   \
   && apt-get update && apt-get install -y \
