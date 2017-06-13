@@ -2,7 +2,7 @@ FROM alpine:3.4
 
 MAINTAINER Joao Gilberto Magalhaes
 
-ENV NGINX_VERSION 1.10.0
+ENV NGINX_VERSION 1.11.10
 ENV MORE_SET_HEADER_VERSION 0.32
 
 RUN mkdir -p /var/www/html \
