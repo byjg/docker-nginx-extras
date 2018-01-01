@@ -1,9 +1,11 @@
-FROM alpine:3.4
+FROM alpine:3.7
 
 MAINTAINER Joao Gilberto Magalhaes
 
-ENV NGINX_VERSION 1.12.0
-ENV MORE_SET_HEADER_VERSION 0.32
+WORKDIR /var/www/html
+
+ENV NGINX_VERSION 1.12.2
+ENV MORE_SET_HEADER_VERSION 0.33
 
 RUN mkdir -p /var/www/html \
     && GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
@@ -86,6 +88,8 @@ RUN mkdir -p /var/www/html \
     done; \
     test -z "$found" && echo >&2 "error: failed to fetch GPG key $GPG_KEYS" && exit 1; \
     gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz \
+    && pkill -9 gpg-agent \
+    && pkill -9 dirmngr \
     && rm -r "$GNUPGHOME" nginx.tar.gz.asc \
     && mkdir -p /usr/src \
     && tar -zxC /usr/src -f nginx.tar.gz \
@@ -131,9 +135,12 @@ RUN mkdir -p /var/www/html \
             | sort -u \
     )" \
     && apk add --no-cache --virtual .nginx-rundeps $runDeps \
-    && apk del .build-deps \
-    && apk del .gettext \
+    && apk del --no-cache .build-deps \
+    && apk del --no-cache .gettext \
     && mv /tmp/envsubst /usr/local/bin/ \
+    && rm /tmp/$MORE_SET_HEADER_VERSION.tar.gz \
+    && rm -rf /tmp/headers-more-nginx-module-$MORE_SET_HEADER_VERSION \
+    && rm -rf /tmp/pear \
     \
     # forward request and error logs to docker log collector
     && ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -144,9 +151,6 @@ COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx.vh.default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80 443
-
-WORKDIR /var/www/html
-
 STOPSIGNAL SIGQUIT
 
 CMD ["nginx", "-g", "daemon off;"]
