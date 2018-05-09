@@ -4,8 +4,10 @@ Nginx extended version: provides a version of nginx with the standard modules, p
 this container is based on ubuntu:16.04 (trusty) and the official PPA.
 
 ## Tags:
-* 1.10, latest: Stable versions of NGINX.
-* 1.11: Development (aka Mainline) versions of NGINX.
+* 1.10
+* 1.11
+* 1.12
+* 1.13, latest
 
 ## STANDARD HTTP MODULES: 
 Core, Access, Auth Basic, Auto Index, Browser,

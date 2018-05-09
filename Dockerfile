@@ -4,7 +4,7 @@ MAINTAINER Joao Gilberto Magalhaes
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION 1.12.2
+ENV NGINX_VERSION 1.13.12
 ENV MORE_SET_HEADER_VERSION 0.33
 
 RUN mkdir -p /var/www/html \
