@@ -7,7 +7,8 @@ this container is based on ubuntu:16.04 (trusty) and the official PPA.
 * 1.10
 * 1.11
 * 1.12
-* 1.13, latest
+* 1.13
+* 1.14, latest
 
 # STANDARD HTTP MODULES: 
 Core, Access, Auth Basic, Auto Index, Browser,
