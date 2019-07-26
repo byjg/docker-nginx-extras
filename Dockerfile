@@ -1,10 +1,10 @@
-FROM alpine:3.7
+FROM alpine:3.9
 
 MAINTAINER Joao Gilberto Magalhaes
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION 1.16.0
+ENV NGINX_VERSION 1.17.2
 ENV MORE_SET_HEADER_VERSION 0.33
 
 RUN mkdir -p /var/www/html \

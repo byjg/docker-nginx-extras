@@ -1,14 +1,17 @@
 # byjg/docker-nginx-extras
 
 Nginx extended version: provides a version of nginx with the standard modules, plus extra features and modules,
-this container is based on ubuntu:16.04 (trusty) and the official PPA.
+this container is based on Alpine Linux and the nginx is compiled from the source code.
 
 # Tags:
-* 1.10
-* 1.11
-* 1.12
+* 1.17, latest
+* 1.16
+* 1.15
+* 1.14
 * 1.13
-* 1.14, latest
+* 1.12
+* 1.11
+* 1.10
 
 # STANDARD HTTP MODULES: 
 Core, Access, Auth Basic, Auto Index, Browser,
