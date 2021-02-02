@@ -1,0 +1,14 @@
+language: python
+
+python:
+  - 3.6
+
+script:
+  - echo "Just build documentation. Image created on Docker Hub"
+
+jobs:
+  include:
+    - stage: documentation
+      if: branch = master
+      install: skip
+      script: "curl https://opensource.byjg.com/add-doc.sh | bash /dev/stdin devops docker-nginx-extras"
