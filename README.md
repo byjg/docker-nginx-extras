@@ -9,7 +9,8 @@ Nginx extended version: provides a version of nginx with the standard modules, p
 this container is based on Alpine Linux and the nginx is compiled from the source code.
 
 ## Tags:
-* 1.20, latest
+* 1.21, latest
+* 1.20
 * 1.19
 * 1.18
 * 1.17 
