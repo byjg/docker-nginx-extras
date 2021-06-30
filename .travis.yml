@@ -1,14 +1,17 @@
 language: python
 
-python:
-  - 3.6
+services:
+  - docker
+
+install:
+  - echo docker pull byjg/k8s-ci
 
 script:
-  - echo "Just build documentation. Image created on Docker Hub"
+  - echo docker run --privileged -v  /tmp/z:/var/lib/containers -it --rm -v $PWD:/work -w /work -e DOCKER_USERNAME=$DOCKER_USERNAME -e DOCKER_PASSWORD=$DOCKER_PASSWORD -e DOCKER_REGISTRY=$DOCKER_REGISTRY byjg/k8s-ci /work/build-multiarch.sh
 
 jobs:
   include:
     - stage: documentation
-      if: branch = master
+      if: (branch = master) AND (NOT (type IN (pull_request)))
       install: skip
       script: "curl https://opensource.byjg.com/add-doc.sh | bash /dev/stdin devops docker-nginx-extras"

@@ -1,10 +1,10 @@
-FROM alpine:3.9
+FROM alpine:3.14
 
 MAINTAINER Joao Gilberto Magalhaes
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION 1.19.6
+ENV NGINX_VERSION 1.20.1
 ENV MORE_SET_HEADER_VERSION 0.33
 
 RUN mkdir -p /var/www/html \
@@ -73,8 +73,8 @@ RUN mkdir -p /var/www/html \
     && cd /tmp/ \
     && curl -fSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
     && tar xvf $MORE_SET_HEADER_VERSION.tar.gz \
-    && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
-    && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
+    && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
+    && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
     && export GNUPGHOME="$(mktemp -d)" \
     && found=''; \
     for server in \
