@@ -4,8 +4,9 @@ MAINTAINER Joao Gilberto Magalhaes
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION 1.21.0
+ENV NGINX_VERSION 1.21.1
 ENV MORE_SET_HEADER_VERSION 0.33
+ENV FANCYINDEX 0.5.1
 
 RUN mkdir -p /var/www/html \
     && GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
@@ -54,6 +55,7 @@ RUN mkdir -p /var/www/html \
         --with-file-aio \
         --with-http_v2_module \
         --add-module=/tmp/headers-more-nginx-module-$MORE_SET_HEADER_VERSION \
+        --add-module=/tmp/ngx-fancyindex-$FANCYINDEX \
     " \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
@@ -71,10 +73,12 @@ RUN mkdir -p /var/www/html \
         gd-dev \
         geoip-dev \
     && cd /tmp/ \
-    && curl -fSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
+    && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
     && tar xvf $MORE_SET_HEADER_VERSION.tar.gz \
-    && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
-    && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
+    && curl -sfSL https://github.com/aperezdc/ngx-fancyindex/releases/download/v$FANCYINDEX/ngx-fancyindex-$FANCYINDEX.tar.xz -o fancyindex.tar.xz \
+    && tar xvf fancyindex.tar.xz \
+    && curl -sfSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
+    && curl -sfSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
     && export GNUPGHOME="$(mktemp -d)" \
     && found=''; \
     for server in \
@@ -140,6 +144,8 @@ RUN mkdir -p /var/www/html \
     && mv /tmp/envsubst /usr/local/bin/ \
     && rm /tmp/$MORE_SET_HEADER_VERSION.tar.gz \
     && rm -rf /tmp/headers-more-nginx-module-$MORE_SET_HEADER_VERSION \
+    && rm /tmp/fancyindex.tar.xz \
+    && rm -rf /tmp/ngx-fancyindex-$FANCYINDEX \
     && rm -rf /tmp/pear \
     \
     # forward request and error logs to docker log collector

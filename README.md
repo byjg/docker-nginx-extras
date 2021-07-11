@@ -38,10 +38,15 @@ Mail Core, IMAP, POP3, SMTP, SSL.
 
 ## THIRD PARTY MODULES:
 Auth PAM, Chunkin, DAV Ext, Echo, Embedded Lua,
-Fancy Index, HttpHeadersMore, HTTP Substitution Filter, http push,
+Fancyindex, HttpHeadersMore, HTTP Substitution Filter, http push,
 Nginx Development Kit, Upload Progress, Upstream Fair Queue.
 
 ## Usage
+
+### Important volume mappings
+
+* /var/www/html - Root folder
+* /etc/nginx/conf.d/ - configuration folder
 
 ```bash
 $ docker run  -v /path/to/html:/var/www/html -p 8080:80 byjg/nginx-extras
@@ -50,7 +55,7 @@ $ docker run  -v /path/to/html:/var/www/html -p 8080:80 byjg/nginx-extras
 If you want to setup your own configuration run:
 
 ```bash
-$ docker run  -v /path/to/html:/var/www/html -v /path/to/sites-enabled:/etc/nginx/sites-enabled -p 8080:80 byjg/nginx-extras
+$ docker run  -v /path/to/html:/var/www/html -v /path/to/sites-enabled:/etc/nginx/conf.d -p 8080:80 byjg/nginx-extras
 ```
 
 ## Note
