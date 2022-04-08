@@ -1,10 +1,8 @@
 FROM alpine:3.14
 
-MAINTAINER Joao Gilberto Magalhaes
-
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION 1.21.1
+ENV NGINX_VERSION 1.21.6
 ENV MORE_SET_HEADER_VERSION 0.33
 ENV FANCYINDEX 0.5.1
 
@@ -56,10 +54,12 @@ RUN mkdir -p /var/www/html \
         --with-http_v2_module \
         --add-module=/tmp/headers-more-nginx-module-$MORE_SET_HEADER_VERSION \
         --add-module=/tmp/ngx-fancyindex-$FANCYINDEX \
+        --add-module=/tmp/ngx_http_substitutions_filter_module \
     " \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
     && apk add --no-cache --virtual .build-deps \
+        git \
         gcc \
         libc-dev \
         make \
@@ -73,6 +73,7 @@ RUN mkdir -p /var/www/html \
         gd-dev \
         geoip-dev \
     && cd /tmp/ \
+    && git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git /tmp/ngx_http_substitutions_filter_module \
     && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
     && tar xvf $MORE_SET_HEADER_VERSION.tar.gz \
     && curl -sfSL https://github.com/aperezdc/ngx-fancyindex/releases/download/v$FANCYINDEX/ngx-fancyindex-$FANCYINDEX.tar.xz -o fancyindex.tar.xz \
@@ -146,6 +147,7 @@ RUN mkdir -p /var/www/html \
     && rm -rf /tmp/headers-more-nginx-module-$MORE_SET_HEADER_VERSION \
     && rm /tmp/fancyindex.tar.xz \
     && rm -rf /tmp/ngx-fancyindex-$FANCYINDEX \
+    && rm -rf /tmp/ngx_http_substitutions_filter_module \
     && rm -rf /tmp/pear \
     \
     # forward request and error logs to docker log collector
