@@ -72,6 +72,7 @@ RUN mkdir -p /var/www/html \
         libxslt-dev \
         gd-dev \
         geoip-dev \
+        apache2-utils \
     && cd /tmp/ \
     && git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git /tmp/ngx_http_substitutions_filter_module \
     && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
