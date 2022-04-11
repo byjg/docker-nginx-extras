@@ -139,7 +139,7 @@ RUN mkdir -p /var/www/html \
             | xargs -r apk info --installed \
             | sort -u \
     )" \
-    && apk add --no-cache --virtual .nginx-rundeps $runDeps \
+    && apk add --no-cache --virtual .nginx-rundeps $runDeps apache2-utils \
     && apk del --no-cache .build-deps \
     && apk del --no-cache .gettext \
     && mv /tmp/envsubst /usr/local/bin/ \
