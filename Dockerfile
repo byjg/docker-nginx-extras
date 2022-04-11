@@ -72,7 +72,6 @@ RUN mkdir -p /var/www/html \
         libxslt-dev \
         gd-dev \
         geoip-dev \
-        apache2-utils \
     && cd /tmp/ \
     && git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git /tmp/ngx_http_substitutions_filter_module \
     && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
@@ -140,7 +139,7 @@ RUN mkdir -p /var/www/html \
             | xargs -r apk info --installed \
             | sort -u \
     )" \
-    && apk add --no-cache --virtual .nginx-rundeps $runDeps \
+    && apk add --no-cache --virtual .nginx-rundeps $runDeps apache2-utils \
     && apk del --no-cache .build-deps \
     && apk del --no-cache .gettext \
     && mv /tmp/envsubst /usr/local/bin/ \
