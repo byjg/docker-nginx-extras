@@ -11,7 +11,8 @@ this container is based on Alpine Linux and the nginx is compiled from the sourc
 
 ## Tags
 
-* 1.21, latest
+* 1.22, latest
+* 1.21
 * 1.20
 * 1.19
 * 1.18
