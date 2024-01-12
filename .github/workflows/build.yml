@@ -63,7 +63,7 @@ jobs:
 
   Documentation:
     if: github.ref == 'refs/heads/master'
-    needs: HelmDeploy
+    needs: Build
     uses: byjg/byjg.github.io/.github/workflows/add-doc.yaml@master
     with:
       folder: devops
