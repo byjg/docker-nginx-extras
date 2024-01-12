@@ -62,11 +62,10 @@ jobs:
 
 
   Documentation:
-    runs-on: 'ubuntu-latest'
-    needs: Build
     if: github.ref == 'refs/heads/master'
-    env:
-      DOC_GITHUB_TOKEN: '${{ secrets.DOC_TOKEN }}'
-    steps:
-      - uses: actions/checkout@v2
-      - run: curl https://opensource.byjg.com/add-doc.sh | bash /dev/stdin devops docker-nginx-extras
+    needs: HelmDeploy
+    uses: byjg/byjg.github.io/.github/workflows/add-doc.yaml@master
+    with:
+      folder: devops
+      project: ${{ github.event.repository.name }}
+    secrets: inherit

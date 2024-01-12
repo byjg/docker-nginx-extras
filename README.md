@@ -72,8 +72,8 @@ docker run  -v /path/to/html:/var/www/html -v /path/to/sites-enabled:/etc/nginx/
 
 This Dockerfile uses code from :
 
-* <https://github.com/x-drum/docker-nginx-extras> and
-* <https://github.com/yfix/docker-nginx> (fork from the first)
+* [https://github.com/x-drum/docker-nginx-extras](https://github.com/x-drum/docker-nginx-extras) and
+* [https://github.com/yfix/docker-nginx](https://github.com/x-drum/docker-nginx-extras) (fork from the first)
 
 I removed a lot of things and simplify some code.
 
