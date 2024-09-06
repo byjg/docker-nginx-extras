@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.20
 
 WORKDIR /var/www/html
 
@@ -7,7 +7,7 @@ ENV MORE_SET_HEADER_VERSION 0.34
 ENV FANCYINDEX 0.5.2
 
 RUN mkdir -p /var/www/html \
-    && GPG_KEYS=13C82A63B603576156E30A4EA0EA981B66B0D967 \
+    && GPG_KEYS=D6786CE303D9A9022998DC6CC8464D549AF75C0A \
     && CONFIG="\
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \
