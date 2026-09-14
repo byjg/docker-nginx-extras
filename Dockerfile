@@ -1,15 +1,21 @@
-FROM alpine:3.20
+# The Alpine branch must match the nginx.org package branch that ships a
+# prebuilt ngx_otel_module for exactly NGINX_VERSION: nginx refuses to load a
+# dynamic module built against a different version, and --with-compat does not
+# exempt that check.
+FROM alpine:3.24
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION=1.26.2
+ENV NGINX_VERSION=1.30.4
 ENV MORE_SET_HEADER_VERSION=0.34
 ENV FANCYINDEX=0.5.2
-ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.20/main/x86_64/
+# Architecture is appended at build time; do not hardcode it here.
+ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.24/main/
 
 
 RUN mkdir -p /var/www/html \
-    && GPG_KEYS=D6786CE303D9A9022998DC6CC8464D549AF75C0A \
+    && GPG_KEYS=43387825DDB1BB97EC36BA5D007C8D7C15D87369 \
+    && GPG_KEY_URL=https://nginx.org/keys/arut.key \
     && CONFIG="\
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \
@@ -60,7 +66,7 @@ RUN mkdir -p /var/www/html \
     " \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
-    && apk add --no-cache --allow-untrusted --virtual .build-deps \
+    && apk add --no-cache --virtual .build-deps \
         git \
         gcc \
         libc-dev \
@@ -83,20 +89,22 @@ RUN mkdir -p /var/www/html \
     && curl -sfSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
     && curl -sfSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
     && export GNUPGHOME="$(mktemp -d)" \
-    && found=''; \
-    for server in \
-        ha.pool.sks-keyservers.net \
-        hkp://keyserver.ubuntu.com:80 \
-        hkp://p80.pool.sks-keyservers.net:80 \
-        pgp.mit.edu \
-    ; do \
-        echo "Fetching GPG key $GPG_KEYS from $server"; \
-        gpg --keyserver "$server" --keyserver-options timeout=10 --recv-keys "$GPG_KEYS" && found=yes && break; \
-    done; \
-    test -z "$found" && echo >&2 "error: failed to fetch GPG key $GPG_KEYS" && exit 1; \
-    gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz \
-    && pkill -9 gpg-agent \
-    && pkill -9 dirmngr \
+    # Fetch the release signing key over HTTPS from nginx.org (the sks-keyservers
+    # pools are long dead), then refuse to continue unless the key we actually
+    # got is the pinned fingerprint.
+    && if ! curl -sfSL "$GPG_KEY_URL" -o "$GNUPGHOME/nginx.key"; then \
+        echo "Falling back to hkps://keys.openpgp.org for $GPG_KEYS"; \
+        gpg --batch --keyserver hkps://keys.openpgp.org --keyserver-options timeout=10 --recv-keys "$GPG_KEYS"; \
+        gpg --batch --export --armor "$GPG_KEYS" > "$GNUPGHOME/nginx.key"; \
+    fi \
+    && { gpg --batch --show-keys --with-colons "$GNUPGHOME/nginx.key" \
+            | awk -F: '/^fpr:/ { print $10 }' \
+            | grep -qx "$GPG_KEYS" \
+        || { echo >&2 "error: key fetched from $GPG_KEY_URL does not contain the pinned fingerprint $GPG_KEYS"; exit 1; }; } \
+    && gpg --batch --import "$GNUPGHOME/nginx.key" \
+    && gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz \
+    && { pkill -9 gpg-agent || :; } \
+    && { pkill -9 dirmngr || :; } \
     && rm -r "$GNUPGHOME" nginx.tar.gz.asc \
     && mkdir -p /usr/src \
     && tar -zxC /usr/src -f nginx.tar.gz \
@@ -162,14 +170,56 @@ RUN mkdir -p /var/www/html \
 
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx.vh.default.conf /etc/nginx/conf.d/default.conf
-RUN wget -qO- $MODULE_URL_BASE | \
-    grep -o 'nginx-module-otel-[0-9\.]*-r[0-9]*\.apk' | \
-    sort -Vr | \
-    head -n 1 | \
-    xargs -I {} wget ${MODULE_URL_BASE}{} && \
-    tar -xzf ./nginx-module-otel-*.apk 
-RUN install -m755 /var/www/html/usr/lib/nginx/modules/ngx_otel_module.so /etc/nginx/modules/ngx_otel_module.so && \
-    rm nginx-module-otel-*.apk
+# Install the prebuilt OpenTelemetry module for THIS nginx version and THIS
+# architecture. The package is unpacked in a throwaway directory so nothing
+# leaks into /var/www/html, which the image serves over HTTP.
+RUN set -eu; \
+    arch="$(apk --print-arch)"; \
+    module_url="${MODULE_URL_BASE}${arch}/"; \
+    package="$(wget -qO- "$module_url" \
+        | grep -o "nginx-module-otel-${NGINX_VERSION}\.[0-9.]*-r[0-9]*\.apk" \
+        | sort -Vr \
+        | head -n 1)"; \
+    if [ -z "$package" ]; then \
+        echo >&2 "error: no nginx-module-otel package for nginx ${NGINX_VERSION} on ${arch} at ${module_url}"; \
+        echo >&2 "       nginx will not load a module built for a different version."; \
+        exit 1; \
+    fi; \
+    echo "Installing $package for $arch"; \
+    tmp="$(mktemp -d)"; \
+    wget -q -O "$tmp/otel.apk" "${module_url}${package}"; \
+    # An .apk is concatenated gzip streams; busybox tar extracts the payload and
+    # then complains about the trailing signature, so check the result instead.
+    tar -xzf "$tmp/otel.apk" -C "$tmp" 2>/dev/null || :; \
+    if [ ! -f "$tmp/usr/lib/nginx/modules/ngx_otel_module.so" ]; then \
+        echo >&2 "error: ngx_otel_module.so not found inside $package"; \
+        exit 1; \
+    fi; \
+    install -m755 "$tmp/usr/lib/nginx/modules/ngx_otel_module.so" /etc/nginx/modules/ngx_otel_module.so; \
+    # The module links against gRPC/protobuf/abseil. Install exactly the shared
+    # libraries the package declares (skipping its dependency on the packaged
+    # nginx, since we compiled our own) - without them dlopen() fails.
+    otel_deps="$(sed -n 's/^depend = \(so:.*\)$/\1/p' "$tmp/.PKGINFO")"; \
+    if [ -z "$otel_deps" ]; then \
+        echo >&2 "error: could not read shared library dependencies from $package"; \
+        exit 1; \
+    fi; \
+    apk add --no-cache $otel_deps; \
+    rm -rf "$tmp"
+
+# Prove, at build time and on every architecture, that the module actually
+# loads into the nginx we just compiled and that the web root is clean.
+RUN set -eu; \
+    printf 'load_module /etc/nginx/modules/ngx_otel_module.so;\nevents {}\nhttp {}\n' > /tmp/otel-check.conf; \
+    nginx -t -c /tmp/otel-check.conf; \
+    rm -f /tmp/otel-check.conf; \
+    nginx -t; \
+    unexpected="$(find /var/www/html -mindepth 1 -maxdepth 1 ! -name index.html ! -name 50x.html)"; \
+    if [ -n "$unexpected" ]; then \
+        echo >&2 "error: unexpected entries in /var/www/html:"; \
+        echo >&2 "$unexpected"; \
+        exit 1; \
+    fi
 
 EXPOSE 80 443
 STOPSIGNAL SIGQUIT

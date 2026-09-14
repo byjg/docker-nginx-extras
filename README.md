@@ -11,23 +11,17 @@ this container is based on Alpine Linux and the nginx is compiled from the sourc
 
 ## Tags
 
-* 1.26, latest
-* 1.25
-* 1.24
-* 1.23
-* 1.22
-* 1.21
-* 1.20
-* 1.19
-* 1.18
-* 1.17
-* 1.16
-* 1.15
-* 1.14
-* 1.13
-* 1.12
-* 1.11
-* 1.10
+| Tag | Published when |
+|-----|----------------|
+| `latest` | every push to `master` |
+| `1.30` | every push to `master` — the `<major>.<minor>` of `NGINX_VERSION` in the Dockerfile |
+| `1.2.3` | a full semver git tag is pushed (`git tag 1.2.3 && git push --tags`) |
+
+The image currently ships nginx **1.30.4** on Alpine **3.24**, for `linux/amd64`
+and `linux/arm64`.
+
+Older `1.10` ... `1.26` tags are still on Docker Hub from previous releases, but
+they are not rebuilt.
 
 ## STANDARD HTTP MODULES
 

@@ -3,52 +3,206 @@ name: Docker
 on:
   push:
     branches: [ master ]
-    tags: [ '*.*', '*.*.*' ]
+    tags: [ '*.*.*' ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push image to registry'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 env:
-  IMAGE_NAME: ${{ github.event_name == 'pull_request' && 'byjg/nginx-extras' || format('{0}/byjg/nginx-extras', secrets.DOCKER_REGISTRY) }}
+  # Intentionally explicit. The guideline derives byjg/<name> from the repository
+  # name without the docker- prefix, which gives exactly this value.
+  IMAGE_NAME: byjg/nginx-extras
 
 jobs:
+  Test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the image for testing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+
+      - name: Smoke test the image
+        run: |
+          set -euo pipefail
+          IMAGE="${{ env.IMAGE_NAME }}:test"
+
+          VERSION=$(grep -E '^ENV[[:space:]]+NGINX_VERSION[[:space:]=]' Dockerfile | head -n1 \
+            | sed -E 's/^ENV[[:space:]]+NGINX_VERSION[[:space:]=]+//' | tr -d '"')
+          echo "Dockerfile declares nginx $VERSION"
+
+          echo "--- 1. nginx -v reports the version the Dockerfile declares ---"
+          REPORTED=$(docker run --rm "$IMAGE" nginx -v 2>&1 | sed -E 's#.*nginx/([0-9.]+).*#\1#')
+          echo "nginx -v reports: $REPORTED"
+          if [ "$REPORTED" != "$VERSION" ]; then
+            echo "FAIL: expected nginx $VERSION, got $REPORTED"
+            exit 1
+          fi
+
+          echo "--- 2. the shipped configuration passes nginx -t ---"
+          docker run --rm "$IMAGE" nginx -t
+
+          echo "--- 3. the otel module loads (regression test for version drift) ---"
+          docker run --rm "$IMAGE" sh -c '
+            set -e
+            printf "load_module /etc/nginx/modules/ngx_otel_module.so;\nevents {}\nhttp {}\n" > /tmp/otel.conf
+            nginx -t -c /tmp/otel.conf'
+
+          echo "--- 4. the third-party modules are compiled in ---"
+          NGINX_V=$(docker run --rm "$IMAGE" nginx -V 2>&1)
+          for module in headers-more-nginx-module ngx-fancyindex ngx_http_substitutions_filter_module; do
+            if ! echo "$NGINX_V" | grep -q -- "--add-module=.*$module"; then
+              echo "FAIL: $module is missing from nginx -V"
+              echo "$NGINX_V"
+              exit 1
+            fi
+            echo "ok: $module"
+          done
+
+          echo "--- 5. the container serves HTTP ---"
+          CID=$(docker run -d -p 8080:80 "$IMAGE")
+          trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$i" = 30 ]; then
+              echo "FAIL: the server never became ready"
+              docker logs "$CID"
+              exit 1
+            fi
+            sleep 1
+          done
+          CODE=$(curl -s -o /tmp/body.html -w '%{http_code}' http://localhost:8080/)
+          echo "GET / -> HTTP $CODE"
+          if [ "$CODE" != "200" ]; then
+            echo "FAIL: expected HTTP 200, got $CODE"
+            exit 1
+          fi
+          if ! grep -qi "welcome to nginx" /tmp/body.html; then
+            echo "FAIL: the default page was not served"
+            cat /tmp/body.html
+            exit 1
+          fi
+          docker rm -f "$CID" >/dev/null
+
+          echo "--- 6. the web root is clean (regression test for apk extraction) ---"
+          FILES=$(docker run --rm "$IMAGE" sh -c 'ls -A /var/www/html | sort | tr "\n" " "')
+          echo "/var/www/html contains: $FILES"
+          if [ "$FILES" != "50x.html index.html " ]; then
+            echo "FAIL: /var/www/html must contain only index.html and 50x.html"
+            exit 1
+          fi
+
+          echo
+          echo "All smoke tests passed."
+
   Build:
     runs-on: ubuntu-latest
+    needs: [Test]
     permissions:
       contents: read
       packages: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log into registry
-        if: github.event_name != 'pull_request' || github.event.inputs.push == 'true'
-        uses: docker/login-action@v3
+        if: github.event_name == 'push' || github.event.inputs.push == 'true'
+        uses: docker/login-action@v4
         with:
           registry: ${{ secrets.DOCKER_REGISTRY }}
           username: ${{ secrets.DOCKER_REGISTRY_USER }}
           password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
 
+      - name: Read the nginx version from the Dockerfile
+        id: nginx
+        run: |
+          set -euo pipefail
+          version=$(grep -E '^ENV[[:space:]]+NGINX_VERSION[[:space:]=]' Dockerfile | head -n1 \
+            | sed -E 's/^ENV[[:space:]]+NGINX_VERSION[[:space:]=]+//' | tr -d '"')
+          if [ -z "$version" ]; then
+            echo "FAIL: could not read NGINX_VERSION from the Dockerfile"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "minor=$(echo "$version" | cut -d. -f-2)" >> "$GITHUB_OUTPUT"
+
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ secrets.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      # master/main -> latest plus the nginx <major>.<minor>; a release tag -> the
+      # tag itself. A branch name must never reach the registry.
+      - name: Normalize the tags
+        id: normalized
+        uses: actions/github-script@v9
+        env:
+          REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          NGINX_MINOR: ${{ steps.nginx.outputs.minor }}
+        with:
+          script: |
+            const prefix = process.env.REGISTRY ? `${process.env.REGISTRY}/` : '';
+            const image = `${prefix}${process.env.IMAGE_NAME}`;
+            const tags = `${{ join(steps.meta.outputs.tags, ',') }}`;
+            const result = [];
+            // metadata-action emits one tag per line, and join() above uses
+            // commas, so accept either separator.
+            tags.split(/[\n,]/).forEach(function (item) {
+              const trimmed = item.trim();
+              if (!trimmed) {
+                return;
+              }
+              const short_tag = trimmed.split(":").pop();
+              if (short_tag == "master" || short_tag == "main") {
+                result.push(`${image}:latest`);
+                result.push(`${image}:${process.env.NGINX_MINOR}`);
+              } else if (short_tag != "latest") {
+                result.push(`${image}:${short_tag}`);
+              }
+            });
+            return result.join(",");
+          result-encoding: string
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' || github.event.inputs.push == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          push: ${{ github.event_name == 'push' || github.event.inputs.push == 'true' }}
+          tags: ${{ steps.normalized.outputs.result }}
           labels: ${{ steps.meta.outputs.labels }}
 
   Documentation:
@@ -58,4 +212,5 @@ jobs:
     with:
       folder: devops
       project: ${{ github.event.repository.name }}
-    secrets: inherit
+    secrets:
+      DOC_TOKEN: ${{ secrets.DOC_TOKEN }}
