@@ -3,7 +3,7 @@
 [![Opensource ByJG](https://img.shields.io/badge/opensource-byjg-success.svg)](http://opensource.byjg.com)
 [![Build Status](https://github.com/byjg/docker-nginx-extras/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/byjg/docker-nginx-extras/actions/workflows/build.yml)
 [![GitHub source](https://img.shields.io/badge/Github-source-informational?logo=github)](https://github.com/byjg/docker-nginx-extras/)
-[![GitHub license](https://img.shields.io/github/license/byjg/docker-nginx-extras.svg)](https://opensource.byjg.com/opensource/licensing.html)
+[![GitHub license](https://img.shields.io/github/license/byjg/docker-nginx-extras.svg)](https://opensource.byjg.com/license/)
 [![GitHub release](https://img.shields.io/github/release/byjg/docker-nginx-extras.svg)](https://github.com/byjg/docker-nginx-extras/releases/)
 
 Nginx extended version: provides a version of nginx with the standard modules, plus extra features and modules,
