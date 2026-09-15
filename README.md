@@ -42,9 +42,19 @@ Mail Core, IMAP, POP3, SMTP, SSL.
 
 ## THIRD PARTY MODULES
 
-Auth PAM, Chunkin, DAV Ext, Echo, Embedded Lua,
-Fancyindex, HttpHeadersMore, HTTP Substitution Filter, http push,
-Nginx Development Kit, Upload Progress, Upstream Fair Queue.
+These are the modules actually compiled into the image, with the versions it
+currently ships. Each one is exercised by the build workflow on every run.
+
+| Module | Version |
+|--------|---------|
+| [HttpHeadersMore](https://github.com/openresty/headers-more-nginx-module) | 0.40 |
+| [Fancyindex](https://github.com/aperezdc/ngx-fancyindex) | 0.6.0 |
+| [HTTP Substitution Filter](https://github.com/yaoweibin/ngx_http_substitutions_filter_module) | master (`e12e965`) |
+| [OpenTelemetry](https://nginx.org/en/docs/ngx_otel_module.html) | matches `NGINX_VERSION`, installed from nginx.org |
+
+The previous list here also named Auth PAM, Chunkin, DAV Ext, Echo, Embedded
+Lua, http push, Nginx Development Kit, Upload Progress and Upstream Fair Queue.
+None of those were ever compiled into this image.
 
 ## Usage
 

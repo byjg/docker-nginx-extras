@@ -7,8 +7,11 @@ FROM alpine:3.24
 WORKDIR /var/www/html
 
 ENV NGINX_VERSION=1.30.4
-ENV MORE_SET_HEADER_VERSION=0.34
-ENV FANCYINDEX=0.5.2
+ENV MORE_SET_HEADER_VERSION=0.40
+ENV FANCYINDEX=0.6.0
+# This module's newest tag (v0.6.4) is from 2014 and predates its PCRE2 support,
+# so the pin is a commit on master rather than a tag.
+ENV SUBSTITUTIONS_COMMIT=e12e965ac1837ca709709f9a26f572a54d83430e
 # Architecture is appended at build time; do not hardcode it here.
 ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.24/main/
 
@@ -82,6 +85,7 @@ RUN mkdir -p /var/www/html \
         geoip-dev \
     && cd /tmp/ \
     && git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git /tmp/ngx_http_substitutions_filter_module \
+    && git -C /tmp/ngx_http_substitutions_filter_module checkout -q "$SUBSTITUTIONS_COMMIT" \
     && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
     && tar xvf $MORE_SET_HEADER_VERSION.tar.gz \
     && curl -sfSL https://github.com/aperezdc/ngx-fancyindex/releases/download/v$FANCYINDEX/ngx-fancyindex-$FANCYINDEX.tar.xz -o fancyindex.tar.xz \

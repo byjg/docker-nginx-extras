@@ -87,11 +87,6 @@ jobs:
 
           echo "--- compiled modules ---"
           docker run --rm "$IMAGE" sh -c "nginx -V 2>&1 | tr ' ' '\n' | grep module"
-          ADDED=$(docker run --rm "$IMAGE" sh -c "nginx -V 2>&1 | tr ' ' '\n' | grep -c -- --add-module" || echo 0)
-          if [ "$ADDED" != "3" ]; then
-            echo "FAIL: expected 3 --add-module entries, found $ADDED"
-            exit 1
-          fi
 
           echo "--- the container serves HTTP ---"
           CID=$(docker run -d -p 8080:80 "$IMAGE")
@@ -110,6 +105,51 @@ jobs:
           # -f already fails on any non-2xx, so this checks the status and the body.
           curl -fsS http://localhost:8080/ | grep -qi "welcome to nginx"
           echo "200, default page served"
+          docker rm -f "$CID" >/dev/null
+
+          # Every bundled module is exercised, not just listed: a module that
+          # compiles against this nginx but misbehaves at runtime fails here.
+          echo "--- every module actually works ---"
+          mkdir -p /tmp/site/subs /tmp/site/idx
+          echo "<p>PLACEHOLDER</p>" > /tmp/site/subs/index.html
+          echo alpha > /tmp/site/idx/alpha.txt
+          cat > /tmp/modules.conf <<'CONF'
+          load_module /etc/nginx/modules/ngx_otel_module.so;
+          events {}
+          http {
+              otel_exporter { endpoint localhost:4317; }
+              server {
+                  listen 80;
+                  root /site;
+                  location = /hdr { more_set_headers "X-Mod-Test: ok"; return 200 "ok\n"; }
+                  location /subs/ { subs_filter PLACEHOLDER substituted; otel_trace on; }
+                  location /idx/  { fancyindex on; }
+              }
+          }
+          CONF
+          CID=$(docker run -d -p 8081:80 \
+            -v /tmp/modules.conf:/etc/nginx/nginx.conf:ro \
+            -v /tmp/site:/site:ro "$IMAGE")
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8081/hdr >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$i" = 30 ]; then
+              echo "FAIL: the module test server never became ready"
+              docker logs "$CID"
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -fsSI http://localhost:8081/hdr | grep -qi "X-Mod-Test: ok"
+          echo "ok: headers-more sets response headers"
+          curl -fsS http://localhost:8081/subs/index.html | grep -q substituted
+          echo "ok: subs_filter rewrites the body"
+          curl -fsS http://localhost:8081/idx/ | grep -qi "index of"
+          echo "ok: fancyindex generates a listing"
+          # nginx started at all, so load_module plus the otel_* directives above
+          # were accepted by the module compiled for this exact nginx version.
+          echo "ok: otel module loaded and its directives are valid"
 
       - name: Extract Docker metadata
         id: meta
