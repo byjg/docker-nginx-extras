@@ -91,12 +91,26 @@ if [ -n "$SERIES" ]; then
     fi
 fi
 
+say "Listing nginx source releases..."
+releases=$(fetch "$DOWNLOAD/" \
+    | grep -oE 'nginx-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz' \
+    | sed 's/^nginx-//; s/\.tar\.gz$//' | sort -Vu || true)
+[ -n "$releases" ] || { echo "error: could not list $DOWNLOAD/" >&2; exit 1; }
+
 chosen=""
 for v in $candidates; do
-    if curl -sfSL -o /dev/null -I "$DOWNLOAD/nginx-$v.tar.gz"; then chosen="$v"; break; fi
-    say "  skipping $v: no source tarball at $DOWNLOAD/nginx-$v.tar.gz"
+    if printf '%s\n' "$releases" | grep -qxF "$v"; then chosen="$v"; break; fi
+    say "  skipping $v: otel has it but nginx.org has no source tarball for $v"
 done
 [ -n "$chosen" ] || { echo "error: no candidate had a downloadable source tarball" >&2; exit 1; }
+
+# How far behind upstream does the otel ceiling leave us? Worth printing every
+# run: the cap moves when nginx.org publishes a new otel apk, which is not
+# announced anywhere, so an invisible ceiling is one nobody notices lifting.
+upstream_latest=$(printf '%s\n' "$releases" | tail -1)
+chosen_series="${chosen%.*}"
+upstream_in_series=$(printf '%s\n' "$releases" \
+    | grep -E "^${chosen_series//./\\.}\." | tail -1 || true)
 
 row=$(printf '%s\n' "$pairs" | awk -v v="$chosen" '$1==v {print; exit}')
 alpine_version=$(printf '%s' "$row" | awk '{print $2}')
@@ -135,7 +149,16 @@ subs_commit=$(git ls-remote https://github.com/yaoweibin/ngx_http_substitutions_
 ladder=$(printf '%s\n' "$candidates" | tr '\n' ' ' | sed 's/ $//')
 
 say ""
-say "  nginx        $chosen        (otel apk + source tarball, both arches)"
+if [ "$chosen" = "$upstream_latest" ]; then
+    say "  nginx        $chosen        (newest release; otel apk + tarball, both arches)"
+elif [ "$chosen" != "$upstream_in_series" ]; then
+    say "  nginx        $chosen        (otel apk + source tarball, both arches)"
+    say "               capped by otel: nginx.org has $upstream_in_series in the" \
+        "$chosen_series series, $upstream_latest overall"
+else
+    say "  nginx        $chosen        (newest in the $chosen_series series;" \
+        "nginx.org is at $upstream_latest overall)"
+fi
 say "  alpine       $alpine_version"
 say "  otel apk     $otel_apk"
 say "  gpg key      $gpg_key"
@@ -156,4 +179,6 @@ MORE_SET_HEADER_VERSION=$headers_more
 FANCYINDEX=$fancyindex
 SUBS_FILTER_COMMIT=$subs_commit
 NGINX_CANDIDATES="$ladder"
+UPSTREAM_LATEST=$upstream_latest
+UPSTREAM_IN_SERIES=$upstream_in_series
 EOF
