@@ -4,8 +4,16 @@ on:
   push:
     branches: [ master ]
     tags: [ '*.*', '*.*.*' ]
+    # Tooling that is not part of the image. Path filters are not evaluated
+    # for pushes of tags, so releases always build regardless of this list.
+    paths-ignore:
+      - 'bin/**'
+      - '.claude/**'
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - 'bin/**'
+      - '.claude/**'
 
 env:
   IMAGE_NAME: ${{ github.event_name == 'pull_request' && 'byjg/nginx-extras' || format('{0}/byjg/nginx-extras', secrets.DOCKER_REGISTRY) }}
