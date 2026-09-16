@@ -1,16 +1,16 @@
-FROM alpine:3.23
+FROM alpine:3.24
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION=1.28.3
+ENV NGINX_VERSION=1.30.5
 ENV MORE_SET_HEADER_VERSION=0.40
 ENV FANCYINDEX=0.6.0
-ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.23/main/
+ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.24/main/
 ENV SUBS_FILTER_COMMIT=e12e965ac1837ca709709f9a26f572a54d83430e
 
 
 RUN mkdir -p /var/www/html \
-    && GPG_KEYS=43387825DDB1BB97EC36BA5D007C8D7C15D87369 \
+    && GPG_KEYS=D6786CE303D9A9022998DC6CC8464D549AF75C0A \
     && CONFIG="\
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \
