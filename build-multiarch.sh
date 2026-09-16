@@ -13,7 +13,7 @@ fi
 
 buildah login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD $DOCKER_REGISTRY
 
-TAG=$(cat Dockerfile | grep "ENV NGINX_VERSION" | cut -d" " -f3 | cut -d. -f-2)
+TAG=$(grep -oE "^ENV NGINX_VERSION[ =]+[0-9.]+" Dockerfile | grep -oE "[0-9]+\.[0-9]+" | head -1)
 
 podman run --rm --events-backend=file --cgroup-manager=cgroupfs --privileged docker://multiarch/qemu-user-static --reset -p yes
 

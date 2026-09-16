@@ -5,7 +5,8 @@ WORKDIR /var/www/html
 ENV NGINX_VERSION=1.26.2
 ENV MORE_SET_HEADER_VERSION=0.34
 ENV FANCYINDEX=0.5.2
-ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.20/main/x86_64/
+ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.20/main/
+ENV SUBS_FILTER_COMMIT=e12e965ac1837ca709709f9a26f572a54d83430e
 
 
 RUN mkdir -p /var/www/html \
@@ -76,6 +77,7 @@ RUN mkdir -p /var/www/html \
         geoip-dev \
     && cd /tmp/ \
     && git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git /tmp/ngx_http_substitutions_filter_module \
+    && git -C /tmp/ngx_http_substitutions_filter_module checkout -q $SUBS_FILTER_COMMIT \
     && curl -sfSL https://github.com/openresty/headers-more-nginx-module/archive/v$MORE_SET_HEADER_VERSION.tar.gz -o $MORE_SET_HEADER_VERSION.tar.gz \
     && tar xvf $MORE_SET_HEADER_VERSION.tar.gz \
     && curl -sfSL https://github.com/aperezdc/ngx-fancyindex/releases/download/v$FANCYINDEX/ngx-fancyindex-$FANCYINDEX.tar.xz -o fancyindex.tar.xz \
@@ -162,14 +164,39 @@ RUN mkdir -p /var/www/html \
 
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 COPY conf/nginx.vh.default.conf /etc/nginx/conf.d/default.conf
-RUN wget -qO- $MODULE_URL_BASE | \
-    grep -o 'nginx-module-otel-[0-9\.]*-r[0-9]*\.apk' | \
-    sort -Vr | \
-    head -n 1 | \
-    xargs -I {} wget ${MODULE_URL_BASE}{} && \
-    tar -xzf ./nginx-module-otel-*.apk 
-RUN install -m755 /var/www/html/usr/lib/nginx/modules/ngx_otel_module.so /etc/nginx/modules/ngx_otel_module.so && \
-    rm nginx-module-otel-*.apk
+
+# ngx_otel_module ships as a *prebuilt* binary. nginx refuses to load a dynamic
+# module whose version differs from its own (src/core/ngx_module.c, which
+# --with-compat does not exempt), so pin the apk to NGINX_VERSION rather than
+# grabbing the newest one, and fail the build if no matching apk exists.
+#
+# It also has runtime dependencies of its own that this image does not
+# otherwise carry (otel 0.1.2+ links grpc/protobuf/abseil, 0.1.0 did not), so
+# resolve whatever the apk itself declares instead of hardcoding a list.
+# nginx -t at the end proves the module actually loads.
+RUN set -eux; \
+    apkarch="$(apk --print-arch)"; \
+    index="${MODULE_URL_BASE}${apkarch}/"; \
+    escaped="$(echo "$NGINX_VERSION" | sed 's/\./\\./g')"; \
+    otel_apk="$(wget -qO- "$index" \
+        | grep -oE "nginx-module-otel-${escaped}\.[0-9.]+-r[0-9]+\.apk" \
+        | sort -Vr | head -n 1)"; \
+    if [ -z "$otel_apk" ]; then \
+        echo "ERROR: no nginx-module-otel build for nginx ${NGINX_VERSION} on ${apkarch}." >&2; \
+        echo "       Check ${index} and pick a version that exists there." >&2; \
+        exit 1; \
+    fi; \
+    tmp="$(mktemp -d)"; \
+    wget -qO "$tmp/otel.apk" "${index}${otel_apk}"; \
+    tar -xzf "$tmp/otel.apk" -C "$tmp"; \
+    apk add --no-cache --virtual .otel-rundeps \
+        $(grep '^depend = so:' "$tmp/.PKGINFO" | sed 's/^depend = //'); \
+    install -m755 "$tmp/usr/lib/nginx/modules/ngx_otel_module.so" \
+                  /etc/nginx/modules/ngx_otel_module.so; \
+    rm -rf "$tmp"; \
+    printf 'load_module modules/ngx_otel_module.so;\nevents {}\nhttp {}\n' > /tmp/otel-check.conf; \
+    nginx -t -c /tmp/otel-check.conf; \
+    rm /tmp/otel-check.conf
 
 EXPOSE 80 443
 STOPSIGNAL SIGQUIT
