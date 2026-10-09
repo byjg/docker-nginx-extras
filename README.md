@@ -1,6 +1,7 @@
 # Nginx extras (all modules)
 
 [![Opensource ByJG](https://img.shields.io/badge/opensource-byjg-success.svg)](http://opensource.byjg.com)
+[![Install MCP Server](https://img.shields.io/badge/Install-MCP_Server-8A2BE2?logo=modelcontextprotocol&logoColor=white)](https://opensource.byjg.com/docs/ai/mcpserver-byjg-docs/)
 [![Build Status](https://github.com/byjg/docker-nginx-extras/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/byjg/docker-nginx-extras/actions/workflows/build.yml)
 [![GitHub source](https://img.shields.io/badge/Github-source-informational?logo=github)](https://github.com/byjg/docker-nginx-extras/)
 [![GitHub license](https://img.shields.io/github/license/byjg/docker-nginx-extras.svg)](https://opensource.byjg.com/license/)
