@@ -2,7 +2,7 @@ FROM alpine:3.24
 
 WORKDIR /var/www/html
 
-ENV NGINX_VERSION=1.30.5
+ENV NGINX_VERSION=1.30.6
 ENV MORE_SET_HEADER_VERSION=0.40
 ENV FANCYINDEX=0.6.0
 ENV MODULE_URL_BASE=https://nginx.org/packages/alpine/v3.24/main/
